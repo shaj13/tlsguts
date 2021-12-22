@@ -1855,6 +1855,105 @@ func (*HelloRequest) Unmarshal(data []byte) bool {
 	return len(data) == 4
 }
 
+// SessionState contains the information that is serialized into a session
+// ticket in order to later resume a connection.
+type SessionState struct {
+	Version      uint16
+	CipherSuite  uint16
+	CreatedAt    uint64
+	MasterSecret []byte // opaque master_secret<1..2^16-1>;
+	// struct { opaque certificate<1..2^24-1> } Certificate;
+	Certificates [][]byte // Certificate certificate_list<0..2^24-1>;
+
+	// UsedOldKey is true if the ticket from which this session came from
+	// was encrypted with an older key and thus should be refreshed.
+	UsedOldKey bool
+}
+
+func (m *SessionState) Marshal() []byte {
+	var b cryptobyte.Builder
+	b.AddUint16(m.Version)
+	b.AddUint16(m.CipherSuite)
+	addUint64(&b, m.CreatedAt)
+	b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+		b.AddBytes(m.MasterSecret)
+	})
+	b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+		for _, cert := range m.Certificates {
+			b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+				b.AddBytes(cert)
+			})
+		}
+	})
+	return b.BytesOrPanic()
+}
+
+func (m *SessionState) Unmarshal(data []byte) bool {
+	*m = SessionState{UsedOldKey: m.UsedOldKey}
+	s := cryptobyte.String(data)
+	if ok := s.ReadUint16(&m.Version) &&
+		s.ReadUint16(&m.CipherSuite) &&
+		readUint64(&s, &m.CreatedAt) &&
+		readUint16LengthPrefixed(&s, &m.MasterSecret) &&
+		len(m.MasterSecret) != 0; !ok {
+		return false
+	}
+	var certList cryptobyte.String
+	if !s.ReadUint24LengthPrefixed(&certList) {
+		return false
+	}
+	for !certList.Empty() {
+		var cert []byte
+		if !readUint24LengthPrefixed(&certList, &cert) {
+			return false
+		}
+		m.Certificates = append(m.Certificates, cert)
+	}
+	return s.Empty()
+}
+
+// SessionStateTLS13 is the content of a TLS 1.3 session ticket. Its first
+// version (revision = 0) doesn't carry any of the information needed for 0-RTT
+// validation and the nonce is always empty.
+type SessionStateTLS13 struct {
+	// uint8 version  = 0x0304;
+	// uint8 revision = 0;
+	CipherSuite      uint16
+	CreatedAt        uint64
+	ResumptionSecret []byte          // opaque resumption_master_secret<1..2^8-1>;
+	Certificate      tls.Certificate // CertificateEntry certificate_list<0..2^24-1>;
+}
+
+func (m *SessionStateTLS13) Marshal() []byte {
+	var b cryptobyte.Builder
+	b.AddUint16(tls.VersionTLS13)
+	b.AddUint8(0) // revision
+	b.AddUint16(m.CipherSuite)
+	addUint64(&b, m.CreatedAt)
+	b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
+		b.AddBytes(m.ResumptionSecret)
+	})
+	marshalCertificate(&b, m.Certificate)
+	return b.BytesOrPanic()
+}
+
+func (m *SessionStateTLS13) Unmarshal(data []byte) bool {
+	*m = SessionStateTLS13{}
+	s := cryptobyte.String(data)
+	var version uint16
+	var revision uint8
+	return s.ReadUint16(&version) &&
+		version == tls.VersionTLS13 &&
+		s.ReadUint8(&revision) &&
+		revision == 0 &&
+		s.ReadUint16(&m.CipherSuite) &&
+		readUint64(&s, &m.CreatedAt) &&
+		readUint8LengthPrefixed(&s, &m.ResumptionSecret) &&
+		len(m.ResumptionSecret) != 0 &&
+		unmarshalCertificate(&s, &m.Certificate) &&
+		s.Empty()
+}
+
 // TLS 1.3 Key Share. See RFC 8446, Section 4.2.8.
 type KeyShare struct {
 	Group tls.CurveID
