@@ -960,44 +960,44 @@ func (m *EncryptedExtensions) Unmarshal(data []byte) bool {
 	return true
 }
 
-type endOfEarlyDataMsg struct{}
+type EndOfEarlyData struct{}
 
-func (m *endOfEarlyDataMsg) marshal() []byte {
+func (m *EndOfEarlyData) Marshal() []byte {
 	x := make([]byte, 4)
 	x[0] = typeEndOfEarlyData
 	return x
 }
 
-func (m *endOfEarlyDataMsg) unmarshal(data []byte) bool {
+func (m *EndOfEarlyData) Unmarshal(data []byte) bool {
 	return len(data) == 4
 }
 
-type keyUpdateMsg struct {
-	raw             []byte
-	updateRequested bool
+type KeyUpdate struct {
+	Raw             []byte
+	UpdateRequested bool
 }
 
-func (m *keyUpdateMsg) marshal() []byte {
-	if m.raw != nil {
-		return m.raw
+func (m *KeyUpdate) Marshal() []byte {
+	if m.Raw != nil {
+		return m.Raw
 	}
 
 	var b cryptobyte.Builder
 	b.AddUint8(typeKeyUpdate)
 	b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
-		if m.updateRequested {
+		if m.UpdateRequested {
 			b.AddUint8(1)
 		} else {
 			b.AddUint8(0)
 		}
 	})
 
-	m.raw = b.BytesOrPanic()
-	return m.raw
+	m.Raw = b.BytesOrPanic()
+	return m.Raw
 }
 
-func (m *keyUpdateMsg) unmarshal(data []byte) bool {
-	m.raw = data
+func (m *KeyUpdate) Unmarshal(data []byte) bool {
+	m.Raw = data
 	s := cryptobyte.String(data)
 
 	var updateRequested uint8
@@ -1007,65 +1007,65 @@ func (m *keyUpdateMsg) unmarshal(data []byte) bool {
 	}
 	switch updateRequested {
 	case 0:
-		m.updateRequested = false
+		m.UpdateRequested = false
 	case 1:
-		m.updateRequested = true
+		m.UpdateRequested = true
 	default:
 		return false
 	}
 	return true
 }
 
-type newSessionTicketMsgTLS13 struct {
-	raw          []byte
-	lifetime     uint32
-	ageAdd       uint32
-	nonce        []byte
-	label        []byte
-	maxEarlyData uint32
+type NewSessionTicketTLS13 struct {
+	Raw          []byte
+	Lifetime     uint32
+	AgeAdd       uint32
+	Nonce        []byte
+	Label        []byte
+	MaxEarlyData uint32
 }
 
-func (m *newSessionTicketMsgTLS13) marshal() []byte {
-	if m.raw != nil {
-		return m.raw
+func (m *NewSessionTicketTLS13) Marshal() []byte {
+	if m.Raw != nil {
+		return m.Raw
 	}
 
 	var b cryptobyte.Builder
 	b.AddUint8(typeNewSessionTicket)
 	b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
-		b.AddUint32(m.lifetime)
-		b.AddUint32(m.ageAdd)
+		b.AddUint32(m.Lifetime)
+		b.AddUint32(m.AgeAdd)
 		b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
-			b.AddBytes(m.nonce)
+			b.AddBytes(m.Nonce)
 		})
 		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-			b.AddBytes(m.label)
+			b.AddBytes(m.Label)
 		})
 
 		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-			if m.maxEarlyData > 0 {
+			if m.MaxEarlyData > 0 {
 				b.AddUint16(extensionEarlyData)
 				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-					b.AddUint32(m.maxEarlyData)
+					b.AddUint32(m.MaxEarlyData)
 				})
 			}
 		})
 	})
 
-	m.raw = b.BytesOrPanic()
-	return m.raw
+	m.Raw = b.BytesOrPanic()
+	return m.Raw
 }
 
-func (m *newSessionTicketMsgTLS13) unmarshal(data []byte) bool {
-	*m = newSessionTicketMsgTLS13{raw: data}
+func (m *NewSessionTicketTLS13) Unmarshal(data []byte) bool {
+	*m = NewSessionTicketTLS13{Raw: data}
 	s := cryptobyte.String(data)
 
 	var extensions cryptobyte.String
 	if !s.Skip(4) || // message type and uint24 length field
-		!s.ReadUint32(&m.lifetime) ||
-		!s.ReadUint32(&m.ageAdd) ||
-		!readUint8LengthPrefixed(&s, &m.nonce) ||
-		!readUint16LengthPrefixed(&s, &m.label) ||
+		!s.ReadUint32(&m.Lifetime) ||
+		!s.ReadUint32(&m.AgeAdd) ||
+		!readUint8LengthPrefixed(&s, &m.Nonce) ||
+		!readUint16LengthPrefixed(&s, &m.Label) ||
 		!s.ReadUint16LengthPrefixed(&extensions) ||
 		!s.Empty() {
 		return false
@@ -1081,7 +1081,7 @@ func (m *newSessionTicketMsgTLS13) unmarshal(data []byte) bool {
 
 		switch extension {
 		case extensionEarlyData:
-			if !extData.ReadUint32(&m.maxEarlyData) {
+			if !extData.ReadUint32(&m.MaxEarlyData) {
 				return false
 			}
 		default:
@@ -1097,18 +1097,18 @@ func (m *newSessionTicketMsgTLS13) unmarshal(data []byte) bool {
 	return true
 }
 
-type certificateRequestMsgTLS13 struct {
-	raw                              []byte
-	ocspStapling                     bool
-	scts                             bool
-	supportedSignatureAlgorithms     []tls.SignatureScheme
-	supportedSignatureAlgorithmsCert []tls.SignatureScheme
-	certificateAuthorities           [][]byte
+type CertificateRequestTLS13 struct {
+	Raw                              []byte
+	OCSPStapling                     bool
+	SCTS                             bool
+	SupportedSignatureAlgorithms     []tls.SignatureScheme
+	SupportedSignatureAlgorithmsCert []tls.SignatureScheme
+	CertificateAuthorities           [][]byte
 }
 
-func (m *certificateRequestMsgTLS13) marshal() []byte {
-	if m.raw != nil {
-		return m.raw
+func (m *CertificateRequestTLS13) Marshal() []byte {
+	if m.Raw != nil {
+		return m.Raw
 	}
 
 	var b cryptobyte.Builder
@@ -1119,11 +1119,11 @@ func (m *certificateRequestMsgTLS13) marshal() []byte {
 		b.AddUint8(0)
 
 		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-			if m.ocspStapling {
+			if m.OCSPStapling {
 				b.AddUint16(extensionStatusRequest)
 				b.AddUint16(0) // empty extension_data
 			}
-			if m.scts {
+			if m.SCTS {
 				// RFC 8446, Section 4.4.2.1 makes no mention of
 				// signed_certificate_timestamp in CertificateRequest, but
 				// "Extensions in the Certificate message from the client MUST
@@ -1132,31 +1132,31 @@ func (m *certificateRequestMsgTLS13) marshal() []byte {
 				b.AddUint16(extensionSCT)
 				b.AddUint16(0) // empty extension_data
 			}
-			if len(m.supportedSignatureAlgorithms) > 0 {
+			if len(m.SupportedSignatureAlgorithms) > 0 {
 				b.AddUint16(extensionSignatureAlgorithms)
 				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-						for _, sigAlgo := range m.supportedSignatureAlgorithms {
+						for _, sigAlgo := range m.SupportedSignatureAlgorithms {
 							b.AddUint16(uint16(sigAlgo))
 						}
 					})
 				})
 			}
-			if len(m.supportedSignatureAlgorithmsCert) > 0 {
+			if len(m.SupportedSignatureAlgorithmsCert) > 0 {
 				b.AddUint16(extensionSignatureAlgorithmsCert)
 				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-						for _, sigAlgo := range m.supportedSignatureAlgorithmsCert {
+						for _, sigAlgo := range m.SupportedSignatureAlgorithmsCert {
 							b.AddUint16(uint16(sigAlgo))
 						}
 					})
 				})
 			}
-			if len(m.certificateAuthorities) > 0 {
+			if len(m.CertificateAuthorities) > 0 {
 				b.AddUint16(extensionCertificateAuthorities)
 				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-						for _, ca := range m.certificateAuthorities {
+						for _, ca := range m.CertificateAuthorities {
 							b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 								b.AddBytes(ca)
 							})
@@ -1167,12 +1167,12 @@ func (m *certificateRequestMsgTLS13) marshal() []byte {
 		})
 	})
 
-	m.raw = b.BytesOrPanic()
-	return m.raw
+	m.Raw = b.BytesOrPanic()
+	return m.Raw
 }
 
-func (m *certificateRequestMsgTLS13) unmarshal(data []byte) bool {
-	*m = certificateRequestMsgTLS13{raw: data}
+func (m *CertificateRequestTLS13) Unmarshal(data []byte) bool {
+	*m = CertificateRequestTLS13{Raw: data}
 	s := cryptobyte.String(data)
 
 	var context, extensions cryptobyte.String
@@ -1193,9 +1193,9 @@ func (m *certificateRequestMsgTLS13) unmarshal(data []byte) bool {
 
 		switch extension {
 		case extensionStatusRequest:
-			m.ocspStapling = true
+			m.OCSPStapling = true
 		case extensionSCT:
-			m.scts = true
+			m.SCTS = true
 		case extensionSignatureAlgorithms:
 			var sigAndAlgs cryptobyte.String
 			if !extData.ReadUint16LengthPrefixed(&sigAndAlgs) || sigAndAlgs.Empty() {
@@ -1206,8 +1206,8 @@ func (m *certificateRequestMsgTLS13) unmarshal(data []byte) bool {
 				if !sigAndAlgs.ReadUint16(&sigAndAlg) {
 					return false
 				}
-				m.supportedSignatureAlgorithms = append(
-					m.supportedSignatureAlgorithms, tls.SignatureScheme(sigAndAlg))
+				m.SupportedSignatureAlgorithms = append(
+					m.SupportedSignatureAlgorithms, tls.SignatureScheme(sigAndAlg))
 			}
 		case extensionSignatureAlgorithmsCert:
 			var sigAndAlgs cryptobyte.String
@@ -1219,8 +1219,8 @@ func (m *certificateRequestMsgTLS13) unmarshal(data []byte) bool {
 				if !sigAndAlgs.ReadUint16(&sigAndAlg) {
 					return false
 				}
-				m.supportedSignatureAlgorithmsCert = append(
-					m.supportedSignatureAlgorithmsCert, tls.SignatureScheme(sigAndAlg))
+				m.SupportedSignatureAlgorithmsCert = append(
+					m.SupportedSignatureAlgorithmsCert, tls.SignatureScheme(sigAndAlg))
 			}
 		case extensionCertificateAuthorities:
 			var auths cryptobyte.String
@@ -1232,7 +1232,7 @@ func (m *certificateRequestMsgTLS13) unmarshal(data []byte) bool {
 				if !readUint16LengthPrefixed(&auths, &ca) || len(ca) == 0 {
 					return false
 				}
-				m.certificateAuthorities = append(m.certificateAuthorities, ca)
+				m.CertificateAuthorities = append(m.CertificateAuthorities, ca)
 			}
 		default:
 			// Ignore unknown extensions.
@@ -1247,22 +1247,22 @@ func (m *certificateRequestMsgTLS13) unmarshal(data []byte) bool {
 	return true
 }
 
-type certificateMsg struct {
-	raw          []byte
-	certificates [][]byte
+type Certificate struct {
+	Raw          []byte
+	Certificates [][]byte
 }
 
-func (m *certificateMsg) marshal() (x []byte) {
-	if m.raw != nil {
-		return m.raw
+func (m *Certificate) Marshal() (x []byte) {
+	if m.Raw != nil {
+		return m.Raw
 	}
 
 	var i int
-	for _, slice := range m.certificates {
+	for _, slice := range m.Certificates {
 		i += len(slice)
 	}
 
-	length := 3 + 3*len(m.certificates) + i
+	length := 3 + 3*len(m.Certificates) + i
 	x = make([]byte, 4+length)
 	x[0] = typeCertificate
 	x[1] = uint8(length >> 16)
@@ -1275,7 +1275,7 @@ func (m *certificateMsg) marshal() (x []byte) {
 	x[6] = uint8(certificateOctets)
 
 	y := x[7:]
-	for _, slice := range m.certificates {
+	for _, slice := range m.Certificates {
 		y[0] = uint8(len(slice) >> 16)
 		y[1] = uint8(len(slice) >> 8)
 		y[2] = uint8(len(slice))
@@ -1283,16 +1283,16 @@ func (m *certificateMsg) marshal() (x []byte) {
 		y = y[3+len(slice):]
 	}
 
-	m.raw = x
+	m.Raw = x
 	return
 }
 
-func (m *certificateMsg) unmarshal(data []byte) bool {
+func (m *Certificate) Unmarshal(data []byte) bool {
 	if len(data) < 7 {
 		return false
 	}
 
-	m.raw = data
+	m.Raw = data
 	certsLen := uint32(data[4])<<16 | uint32(data[5])<<8 | uint32(data[6])
 	if uint32(len(data)) != certsLen+7 {
 		return false
@@ -1313,27 +1313,27 @@ func (m *certificateMsg) unmarshal(data []byte) bool {
 		numCerts++
 	}
 
-	m.certificates = make([][]byte, numCerts)
+	m.Certificates = make([][]byte, numCerts)
 	d = data[7:]
 	for i := 0; i < numCerts; i++ {
 		certLen := uint32(d[0])<<16 | uint32(d[1])<<8 | uint32(d[2])
-		m.certificates[i] = d[3 : 3+certLen]
+		m.Certificates[i] = d[3 : 3+certLen]
 		d = d[3+certLen:]
 	}
 
 	return true
 }
 
-type certificateMsgTLS13 struct {
-	raw          []byte
-	certificate  tls.Certificate
-	ocspStapling bool
-	scts         bool
+type CertificateTLS13 struct {
+	Raw          []byte
+	Certificate  tls.Certificate
+	OSCPStapling bool
+	SCTS         bool
 }
 
-func (m *certificateMsgTLS13) marshal() []byte {
-	if m.raw != nil {
-		return m.raw
+func (m *CertificateTLS13) Marshal() []byte {
+	if m.Raw != nil {
+		return m.Raw
 	}
 
 	var b cryptobyte.Builder
@@ -1341,18 +1341,18 @@ func (m *certificateMsgTLS13) marshal() []byte {
 	b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
 		b.AddUint8(0) // certificate_request_context
 
-		certificate := m.certificate
-		if !m.ocspStapling {
+		certificate := m.Certificate
+		if !m.OSCPStapling {
 			certificate.OCSPStaple = nil
 		}
-		if !m.scts {
+		if !m.SCTS {
 			certificate.SignedCertificateTimestamps = nil
 		}
 		marshalCertificate(b, certificate)
 	})
 
-	m.raw = b.BytesOrPanic()
-	return m.raw
+	m.Raw = b.BytesOrPanic()
+	return m.Raw
 }
 
 func marshalCertificate(b *cryptobyte.Builder, certificate tls.Certificate) {
@@ -1392,20 +1392,20 @@ func marshalCertificate(b *cryptobyte.Builder, certificate tls.Certificate) {
 	})
 }
 
-func (m *certificateMsgTLS13) unmarshal(data []byte) bool {
-	*m = certificateMsgTLS13{raw: data}
+func (m *CertificateTLS13) Unmarshal(data []byte) bool {
+	*m = CertificateTLS13{Raw: data}
 	s := cryptobyte.String(data)
 
 	var context cryptobyte.String
 	if !s.Skip(4) || // message type and uint24 length field
 		!s.ReadUint8LengthPrefixed(&context) || !context.Empty() ||
-		!unmarshalCertificate(&s, &m.certificate) ||
+		!unmarshalCertificate(&s, &m.Certificate) ||
 		!s.Empty() {
 		return false
 	}
 
-	m.scts = m.certificate.SignedCertificateTimestamps != nil
-	m.ocspStapling = m.certificate.OCSPStaple != nil
+	m.SCTS = m.Certificate.SignedCertificateTimestamps != nil
+	m.OSCPStapling = m.Certificate.OCSPStaple != nil
 
 	return true
 }
@@ -1470,12 +1470,12 @@ func unmarshalCertificate(s *cryptobyte.String, certificate *tls.Certificate) bo
 	return true
 }
 
-type serverKeyExchangeMsg struct {
+type ServerKeyExchange struct {
 	raw []byte
 	key []byte
 }
 
-func (m *serverKeyExchangeMsg) marshal() []byte {
+func (m *ServerKeyExchange) Marshal() []byte {
 	if m.raw != nil {
 		return m.raw
 	}
@@ -1491,7 +1491,7 @@ func (m *serverKeyExchangeMsg) marshal() []byte {
 	return x
 }
 
-func (m *serverKeyExchangeMsg) unmarshal(data []byte) bool {
+func (m *ServerKeyExchange) Unmarshal(data []byte) bool {
 	m.raw = data
 	if len(data) < 4 {
 		return false
@@ -1500,12 +1500,12 @@ func (m *serverKeyExchangeMsg) unmarshal(data []byte) bool {
 	return true
 }
 
-type certificateStatusMsg struct {
+type CertificateStatus struct {
 	raw      []byte
 	response []byte
 }
 
-func (m *certificateStatusMsg) marshal() []byte {
+func (m *CertificateStatus) Marshal() []byte {
 	if m.raw != nil {
 		return m.raw
 	}
@@ -1523,7 +1523,7 @@ func (m *certificateStatusMsg) marshal() []byte {
 	return m.raw
 }
 
-func (m *certificateStatusMsg) unmarshal(data []byte) bool {
+func (m *CertificateStatus) Unmarshal(data []byte) bool {
 	m.raw = data
 	s := cryptobyte.String(data)
 
@@ -1537,41 +1537,41 @@ func (m *certificateStatusMsg) unmarshal(data []byte) bool {
 	return true
 }
 
-type serverHelloDoneMsg struct{}
+type ServerHelloDone struct{}
 
-func (m *serverHelloDoneMsg) marshal() []byte {
+func (m *ServerHelloDone) Marshal() []byte {
 	x := make([]byte, 4)
 	x[0] = typeServerHelloDone
 	return x
 }
 
-func (m *serverHelloDoneMsg) unmarshal(data []byte) bool {
+func (m *ServerHelloDone) Unmarshal(data []byte) bool {
 	return len(data) == 4
 }
 
-type clientKeyExchangeMsg struct {
-	raw        []byte
-	ciphertext []byte
+type ClientKeyExchange struct {
+	Raw        []byte
+	CipherText []byte
 }
 
-func (m *clientKeyExchangeMsg) marshal() []byte {
-	if m.raw != nil {
-		return m.raw
+func (m *ClientKeyExchange) Marshal() []byte {
+	if m.Raw != nil {
+		return m.Raw
 	}
-	length := len(m.ciphertext)
+	length := len(m.CipherText)
 	x := make([]byte, length+4)
 	x[0] = typeClientKeyExchange
 	x[1] = uint8(length >> 16)
 	x[2] = uint8(length >> 8)
 	x[3] = uint8(length)
-	copy(x[4:], m.ciphertext)
+	copy(x[4:], m.CipherText)
 
-	m.raw = x
+	m.Raw = x
 	return x
 }
 
-func (m *clientKeyExchangeMsg) unmarshal(data []byte) bool {
-	m.raw = data
+func (m *ClientKeyExchange) Unmarshal(data []byte) bool {
+	m.Raw = data
 	if len(data) < 4 {
 		return false
 	}
@@ -1579,64 +1579,64 @@ func (m *clientKeyExchangeMsg) unmarshal(data []byte) bool {
 	if l != len(data)-4 {
 		return false
 	}
-	m.ciphertext = data[4:]
+	m.CipherText = data[4:]
 	return true
 }
 
-type finishedMsg struct {
-	raw        []byte
-	verifyData []byte
+type Finished struct {
+	Raw        []byte
+	VerifyData []byte
 }
 
-func (m *finishedMsg) marshal() []byte {
-	if m.raw != nil {
-		return m.raw
+func (m *Finished) Marshal() []byte {
+	if m.Raw != nil {
+		return m.Raw
 	}
 
 	var b cryptobyte.Builder
 	b.AddUint8(typeFinished)
 	b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
-		b.AddBytes(m.verifyData)
+		b.AddBytes(m.VerifyData)
 	})
 
-	m.raw = b.BytesOrPanic()
-	return m.raw
+	m.Raw = b.BytesOrPanic()
+	return m.Raw
 }
 
-func (m *finishedMsg) unmarshal(data []byte) bool {
-	m.raw = data
+func (m *Finished) Unmarshal(data []byte) bool {
+	m.Raw = data
 	s := cryptobyte.String(data)
 	return s.Skip(1) &&
-		readUint24LengthPrefixed(&s, &m.verifyData) &&
+		readUint24LengthPrefixed(&s, &m.VerifyData) &&
 		s.Empty()
 }
 
-type certificateRequestMsg struct {
-	raw []byte
-	// hasSignatureAlgorithm indicates whether this message includes a list of
+type CertificateRequest struct {
+	Raw []byte
+	// HasSignatureAlgorithm indicates whether this message includes a list of
 	// supported signature algorithms. This change was introduced with TLS 1.2.
-	hasSignatureAlgorithm bool
+	HasSignatureAlgorithm bool
 
-	certificateTypes             []byte
-	supportedSignatureAlgorithms []tls.SignatureScheme
-	certificateAuthorities       [][]byte
+	CertificateTypes             []byte
+	SupportedSignatureAlgorithms []tls.SignatureScheme
+	CertificateAuthorities       [][]byte
 }
 
-func (m *certificateRequestMsg) marshal() (x []byte) {
-	if m.raw != nil {
-		return m.raw
+func (m *CertificateRequest) Marshal() (x []byte) {
+	if m.Raw != nil {
+		return m.Raw
 	}
 
 	// See RFC 4346, Section 7.4.4.
-	length := 1 + len(m.certificateTypes) + 2
+	length := 1 + len(m.CertificateTypes) + 2
 	casLength := 0
-	for _, ca := range m.certificateAuthorities {
+	for _, ca := range m.CertificateAuthorities {
 		casLength += 2 + len(ca)
 	}
 	length += casLength
 
-	if m.hasSignatureAlgorithm {
-		length += 2 + 2*len(m.supportedSignatureAlgorithms)
+	if m.HasSignatureAlgorithm {
+		length += 2 + 2*len(m.SupportedSignatureAlgorithms)
 	}
 
 	x = make([]byte, 4+length)
@@ -1645,17 +1645,17 @@ func (m *certificateRequestMsg) marshal() (x []byte) {
 	x[2] = uint8(length >> 8)
 	x[3] = uint8(length)
 
-	x[4] = uint8(len(m.certificateTypes))
+	x[4] = uint8(len(m.CertificateTypes))
 
-	copy(x[5:], m.certificateTypes)
-	y := x[5+len(m.certificateTypes):]
+	copy(x[5:], m.CertificateTypes)
+	y := x[5+len(m.CertificateTypes):]
 
-	if m.hasSignatureAlgorithm {
-		n := len(m.supportedSignatureAlgorithms) * 2
+	if m.HasSignatureAlgorithm {
+		n := len(m.SupportedSignatureAlgorithms) * 2
 		y[0] = uint8(n >> 8)
 		y[1] = uint8(n)
 		y = y[2:]
-		for _, sigAlgo := range m.supportedSignatureAlgorithms {
+		for _, sigAlgo := range m.SupportedSignatureAlgorithms {
 			y[0] = uint8(sigAlgo >> 8)
 			y[1] = uint8(sigAlgo)
 			y = y[2:]
@@ -1665,7 +1665,7 @@ func (m *certificateRequestMsg) marshal() (x []byte) {
 	y[0] = uint8(casLength >> 8)
 	y[1] = uint8(casLength)
 	y = y[2:]
-	for _, ca := range m.certificateAuthorities {
+	for _, ca := range m.CertificateAuthorities {
 		y[0] = uint8(len(ca) >> 8)
 		y[1] = uint8(len(ca))
 		y = y[2:]
@@ -1673,12 +1673,12 @@ func (m *certificateRequestMsg) marshal() (x []byte) {
 		y = y[len(ca):]
 	}
 
-	m.raw = x
+	m.Raw = x
 	return
 }
 
-func (m *certificateRequestMsg) unmarshal(data []byte) bool {
-	m.raw = data
+func (m *CertificateRequest) Unmarshal(data []byte) bool {
+	m.Raw = data
 
 	if len(data) < 5 {
 		return false
@@ -1695,14 +1695,14 @@ func (m *certificateRequestMsg) unmarshal(data []byte) bool {
 		return false
 	}
 
-	m.certificateTypes = make([]byte, numCertTypes)
-	if copy(m.certificateTypes, data) != numCertTypes {
+	m.CertificateTypes = make([]byte, numCertTypes)
+	if copy(m.CertificateTypes, data) != numCertTypes {
 		return false
 	}
 
 	data = data[numCertTypes:]
 
-	if m.hasSignatureAlgorithm {
+	if m.HasSignatureAlgorithm {
 		if len(data) < 2 {
 			return false
 		}
@@ -1715,9 +1715,9 @@ func (m *certificateRequestMsg) unmarshal(data []byte) bool {
 			return false
 		}
 		numSigAlgos := sigAndHashLen / 2
-		m.supportedSignatureAlgorithms = make([]tls.SignatureScheme, numSigAlgos)
-		for i := range m.supportedSignatureAlgorithms {
-			m.supportedSignatureAlgorithms[i] = tls.SignatureScheme(data[0])<<8 | tls.SignatureScheme(data[1])
+		m.SupportedSignatureAlgorithms = make([]tls.SignatureScheme, numSigAlgos)
+		for i := range m.SupportedSignatureAlgorithms {
+			m.SupportedSignatureAlgorithms[i] = tls.SignatureScheme(data[0])<<8 | tls.SignatureScheme(data[1])
 			data = data[2:]
 		}
 	}
@@ -1734,7 +1734,7 @@ func (m *certificateRequestMsg) unmarshal(data []byte) bool {
 	copy(cas, data)
 	data = data[casLength:]
 
-	m.certificateAuthorities = nil
+	m.CertificateAuthorities = nil
 	for len(cas) > 0 {
 		if len(cas) < 2 {
 			return false
@@ -1746,67 +1746,67 @@ func (m *certificateRequestMsg) unmarshal(data []byte) bool {
 			return false
 		}
 
-		m.certificateAuthorities = append(m.certificateAuthorities, cas[:caLen])
+		m.CertificateAuthorities = append(m.CertificateAuthorities, cas[:caLen])
 		cas = cas[caLen:]
 	}
 
 	return len(data) == 0
 }
 
-type certificateVerifyMsg struct {
-	raw                   []byte
-	hasSignatureAlgorithm bool // format change introduced in TLS 1.2
-	signatureAlgorithm    tls.SignatureScheme
-	signature             []byte
+type CertificateVerify struct {
+	Raw                   []byte
+	HasSignatureAlgorithm bool // format change introduced in TLS 1.2
+	SignatureAlgorithm    tls.SignatureScheme
+	Signature             []byte
 }
 
-func (m *certificateVerifyMsg) marshal() (x []byte) {
-	if m.raw != nil {
-		return m.raw
+func (m *CertificateVerify) Marshal() (x []byte) {
+	if m.Raw != nil {
+		return m.Raw
 	}
 
 	var b cryptobyte.Builder
 	b.AddUint8(typeCertificateVerify)
 	b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
-		if m.hasSignatureAlgorithm {
-			b.AddUint16(uint16(m.signatureAlgorithm))
+		if m.HasSignatureAlgorithm {
+			b.AddUint16(uint16(m.SignatureAlgorithm))
 		}
 		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-			b.AddBytes(m.signature)
+			b.AddBytes(m.Signature)
 		})
 	})
 
-	m.raw = b.BytesOrPanic()
-	return m.raw
+	m.Raw = b.BytesOrPanic()
+	return m.Raw
 }
 
-func (m *certificateVerifyMsg) unmarshal(data []byte) bool {
-	m.raw = data
+func (m *CertificateVerify) Unmarshal(data []byte) bool {
+	m.Raw = data
 	s := cryptobyte.String(data)
 
 	if !s.Skip(4) { // message type and uint24 length field
 		return false
 	}
-	if m.hasSignatureAlgorithm {
-		if !s.ReadUint16((*uint16)(&m.signatureAlgorithm)) {
+	if m.HasSignatureAlgorithm {
+		if !s.ReadUint16((*uint16)(&m.SignatureAlgorithm)) {
 			return false
 		}
 	}
-	return readUint16LengthPrefixed(&s, &m.signature) && s.Empty()
+	return readUint16LengthPrefixed(&s, &m.Signature) && s.Empty()
 }
 
-type newSessionTicketMsg struct {
-	raw    []byte
-	ticket []byte
+type NewSessionTicket struct {
+	Raw    []byte
+	Ticket []byte
 }
 
-func (m *newSessionTicketMsg) marshal() (x []byte) {
-	if m.raw != nil {
-		return m.raw
+func (m *NewSessionTicket) Marshal() (x []byte) {
+	if m.Raw != nil {
+		return m.Raw
 	}
 
 	// See RFC 5077, Section 3.3.
-	ticketLen := len(m.ticket)
+	ticketLen := len(m.Ticket)
 	length := 2 + 4 + ticketLen
 	x = make([]byte, 4+length)
 	x[0] = typeNewSessionTicket
@@ -1815,15 +1815,15 @@ func (m *newSessionTicketMsg) marshal() (x []byte) {
 	x[3] = uint8(length)
 	x[8] = uint8(ticketLen >> 8)
 	x[9] = uint8(ticketLen)
-	copy(x[10:], m.ticket)
+	copy(x[10:], m.Ticket)
 
-	m.raw = x
+	m.Raw = x
 
 	return
 }
 
-func (m *newSessionTicketMsg) unmarshal(data []byte) bool {
-	m.raw = data
+func (m *NewSessionTicket) Unmarshal(data []byte) bool {
+	m.Raw = data
 
 	if len(data) < 10 {
 		return false
@@ -1839,19 +1839,19 @@ func (m *newSessionTicketMsg) unmarshal(data []byte) bool {
 		return false
 	}
 
-	m.ticket = data[10:]
+	m.Ticket = data[10:]
 
 	return true
 }
 
-type helloRequestMsg struct {
+type HelloRequest struct {
 }
 
-func (*helloRequestMsg) marshal() []byte {
+func (*HelloRequest) Marshal() []byte {
 	return []byte{typeHelloRequest, 0, 0, 0}
 }
 
-func (*helloRequestMsg) unmarshal(data []byte) bool {
+func (*HelloRequest) Unmarshal(data []byte) bool {
 	return len(data) == 4
 }
 
