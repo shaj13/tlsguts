@@ -886,26 +886,26 @@ func (m *ServerHello) Unmarshal(data []byte) bool {
 	return true
 }
 
-type encryptedExtensionsMsg struct {
-	raw          []byte
-	alpnProtocol string
+type EncryptedExtensions struct {
+	Raw          []byte
+	ALPNProtocol string
 }
 
-func (m *encryptedExtensionsMsg) marshal() []byte {
-	if m.raw != nil {
-		return m.raw
+func (m *EncryptedExtensions) Marshal() []byte {
+	if m.Raw != nil {
+		return m.Raw
 	}
 
 	var b cryptobyte.Builder
 	b.AddUint8(typeEncryptedExtensions)
 	b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
 		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-			if len(m.alpnProtocol) > 0 {
+			if len(m.ALPNProtocol) > 0 {
 				b.AddUint16(extensionALPN)
 				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 						b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
-							b.AddBytes([]byte(m.alpnProtocol))
+							b.AddBytes([]byte(m.ALPNProtocol))
 						})
 					})
 				})
@@ -913,12 +913,12 @@ func (m *encryptedExtensionsMsg) marshal() []byte {
 		})
 	})
 
-	m.raw = b.BytesOrPanic()
-	return m.raw
+	m.Raw = b.BytesOrPanic()
+	return m.Raw
 }
 
-func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
-	*m = encryptedExtensionsMsg{raw: data}
+func (m *EncryptedExtensions) Unmarshal(data []byte) bool {
+	*m = EncryptedExtensions{Raw: data}
 	s := cryptobyte.String(data)
 
 	var extensions cryptobyte.String
@@ -946,7 +946,7 @@ func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
 				proto.Empty() || !protoList.Empty() {
 				return false
 			}
-			m.alpnProtocol = string(proto)
+			m.ALPNProtocol = string(proto)
 		default:
 			// Ignore unknown extensions.
 			continue
