@@ -135,10 +135,10 @@ type ClientHello struct {
 	SCTS                             bool
 	SupportedVersions                []uint16
 	Cookie                           []byte
-	KeyShares                        []keyShare
+	KeyShares                        []KeyShare
 	EarlyData                        bool
 	PSKModes                         []uint8
-	PSKIdentities                    []pskIdentity
+	PSKIdentities                    []PSKIdentity
 	PSKBinders                       [][]byte
 }
 
@@ -292,9 +292,9 @@ func (m *ClientHello) Marshal() []byte {
 				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 						for _, ks := range m.KeyShares {
-							b.AddUint16(uint16(ks.group))
+							b.AddUint16(uint16(ks.Group))
 							b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-								b.AddBytes(ks.data)
+								b.AddBytes(ks.Data)
 							})
 						}
 					})
@@ -321,9 +321,9 @@ func (m *ClientHello) Marshal() []byte {
 					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 						for _, psk := range m.PSKIdentities {
 							b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-								b.AddBytes(psk.label)
+								b.AddBytes(psk.Label)
 							})
-							b.AddUint32(psk.obfuscatedTicketAge)
+							b.AddUint32(psk.ObfuscatedTicketAge)
 						}
 					})
 					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
@@ -577,10 +577,10 @@ func (m *ClientHello) Unmarshal(data []byte) bool {
 				return false
 			}
 			for !clientShares.Empty() {
-				var ks keyShare
-				if !clientShares.ReadUint16((*uint16)(&ks.group)) ||
-					!readUint16LengthPrefixed(&clientShares, &ks.data) ||
-					len(ks.data) == 0 {
+				var ks KeyShare
+				if !clientShares.ReadUint16((*uint16)(&ks.Group)) ||
+					!readUint16LengthPrefixed(&clientShares, &ks.Data) ||
+					len(ks.Data) == 0 {
 					return false
 				}
 				m.KeyShares = append(m.KeyShares, ks)
@@ -603,10 +603,10 @@ func (m *ClientHello) Unmarshal(data []byte) bool {
 				return false
 			}
 			for !identities.Empty() {
-				var psk pskIdentity
-				if !readUint16LengthPrefixed(&identities, &psk.label) ||
-					!identities.ReadUint32(&psk.obfuscatedTicketAge) ||
-					len(psk.label) == 0 {
+				var psk PSKIdentity
+				if !readUint16LengthPrefixed(&identities, &psk.Label) ||
+					!identities.ReadUint32(&psk.ObfuscatedTicketAge) ||
+					len(psk.Label) == 0 {
 					return false
 				}
 				m.PSKIdentities = append(m.PSKIdentities, psk)
@@ -650,7 +650,7 @@ type ServerHello struct {
 	ALPNProtocol                 string
 	SCTS                         [][]byte
 	SupportedVersion             uint16
-	ServerShare                  keyShare
+	ServerShare                  KeyShare
 	SelectedIdentityPresent      bool
 	SelectedIdentity             uint16
 	SupportedPoints              []uint8
@@ -725,12 +725,12 @@ func (m *ServerHello) Marshal() []byte {
 					b.AddUint16(m.SupportedVersion)
 				})
 			}
-			if m.ServerShare.group != 0 {
+			if m.ServerShare.Group != 0 {
 				b.AddUint16(extensionKeyShare)
 				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-					b.AddUint16(uint16(m.ServerShare.group))
+					b.AddUint16(uint16(m.ServerShare.Group))
 					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-						b.AddBytes(m.ServerShare.data)
+						b.AddBytes(m.ServerShare.Data)
 					})
 				})
 			}
@@ -857,8 +857,8 @@ func (m *ServerHello) Unmarshal(data []byte) bool {
 					return false
 				}
 			} else {
-				if !extData.ReadUint16((*uint16)(&m.ServerShare.group)) ||
-					!readUint16LengthPrefixed(&extData, &m.ServerShare.data) {
+				if !extData.ReadUint16((*uint16)(&m.ServerShare.Group)) ||
+					!readUint16LengthPrefixed(&extData, &m.ServerShare.Data) {
 					return false
 				}
 			}
@@ -1856,14 +1856,14 @@ func (*helloRequestMsg) unmarshal(data []byte) bool {
 }
 
 // TLS 1.3 Key Share. See RFC 8446, Section 4.2.8.
-type keyShare struct {
-	group tls.CurveID
-	data  []byte
+type KeyShare struct {
+	Group tls.CurveID
+	Data  []byte
 }
 
 // TLS 1.3 PSK Identity. Can be a Session Ticket, or a reference to a saved
 // session. See RFC 8446, Section 4.2.11.
-type pskIdentity struct {
-	label               []byte
-	obfuscatedTicketAge uint32
+type PSKIdentity struct {
+	Label               []byte
+	ObfuscatedTicketAge uint32
 }
